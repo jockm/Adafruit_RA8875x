@@ -1973,8 +1973,8 @@ void Adafruit_RA8875x::drawCanvas1(uint16_t x, uint16_t y, uint16_t fg, uint16_t
 	uint8_t becr0;
 	uint8_t becr1;
 	
-	uint8_t   w = canvas->width();
-	uint8_t   h = canvas->height();
+	uint16_t   w = canvas->width();
+	uint16_t   h = canvas->height();
 	uint8_t  *bmp = canvas->getBuffer();
 	uint16_t  w2 = (w + 7) / 8;
 	uint16_t  len = w2 * h;
@@ -2008,9 +2008,9 @@ void Adafruit_RA8875x::drawCanvas1(uint16_t x, uint16_t y, uint16_t fg, uint16_t
 	r = (fg & 0b1111100000000000) >> 11;
 	g = (fg & 0b0000011111100000) >> 5;
 	b = (fg & 0b0000000000011111) >> 0;
-	this->writeReg(RA8875_BGCR0, r);
-	this->writeReg(RA8875_BGCR1, g);
-	this->writeReg(RA8875_BGCR2, b);
+	this->writeReg(RA8875_FGCR0, r);
+	this->writeReg(RA8875_FGCR1, g);
+	this->writeReg(RA8875_FGCR2, b);
 	
 	// 6. Setting BTE operation and ROP function --> BECR1[bits 3-0] = 08h
 	becr1 = this->readReg(RA8875_BECR1);
@@ -2030,11 +2030,23 @@ void Adafruit_RA8875x::drawCanvas1(uint16_t x, uint16_t y, uint16_t fg, uint16_t
 	
 	SPI.transfer(RA8875_DATAWRITE);
 
+	// For reasons I can't figure out, we need to write a padding 
+	// character at the end of each line, UNLESS the width of the 
+	// line modulus 8 is 1.
+	//
+	// Neither the need for the padding character, nor the mod 8 
+	// exception is documented anywhere in the datasheet that I can
+	// find.
+	bool pad = w % 8 != 1;
+	
 	for(int y = 0; y < len / w2; ++y) {
 		for(int16_t x = 0; x < w2; ++x) {
 			SPI.transfer(*(bmp++));				
 		}
-		SPI.transfer(0x00);
+		
+		if(pad) {
+			SPI.transfer(0x00);
+		}
 	}
 	
 	digitalWrite(_cs, HIGH);
