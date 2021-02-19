@@ -1,6 +1,6 @@
 /**************************************************************************/
 /*!
-    @file     Adafruit_RA8875.h
+    @file     Adafruit_RA8875x.h
     @author   Limor Friend/Ladyada, K.Townsend/KTOWN for Adafruit Industries
 
      This is the library for the Adafruit RA8875 Driver board for TFT displays
@@ -44,8 +44,8 @@
 
 #include <Adafruit_GFX.h>
 
-#ifndef _ADAFRUIT_RA8875_H
-#define _ADAFRUIT_RA8875_H ///< File has been included
+#ifndef _ADAFRUIT_RA8875X_H
+#define _ADAFRUIT_RA8875X_H ///< File has been included
 
 // Touchscreen Calibration and EEPROM Storage Defines
 #define CFG_EEPROM_TOUCHSCREEN_CAL_AN 0       ///< EEPROM Storage Location
@@ -130,21 +130,59 @@ typedef struct // Matrix
   int32_t An, Bn, Cn, Dn, En, Fn, Divider;
 } tsMatrix_t;
 
+
+
 /**************************************************************************/
 /*!
  @brief  Class that stores state and functions for interacting with
  the RA8875 display controller.
  */
 /**************************************************************************/
-class Adafruit_RA8875 : public Adafruit_GFX {
+class Adafruit_RA8875x : public Adafruit_GFX {
 public:
-  Adafruit_RA8875(uint8_t cs, uint8_t rst);
+  Adafruit_RA8875x(uint8_t cs, uint8_t rst);
 
   boolean begin(enum RA8875sizes s);
   void softReset(void);
   void displayOn(boolean on);
   void sleep(boolean sleep);
 
+  ///////////////////////////////////////////////////////////////////
+  // Enhancements
+  
+	typedef enum {
+		InternalFont,
+		ExternalFont,
+		UserFont
+	} FontType;
+
+	typedef enum {
+		ISO8859_1 = 0b00,
+		ISO8859_2 = 0b01,
+		ISO8859_3 = 0b10,
+		ISO8859_4 = 0b11,
+		Set1 = 0b00,
+		Set2 = 0b01,
+		Set3 = 0b10,
+		Set4 = 0b11,
+	} FontSet;
+  
+  
+  void targetCGRAM();
+  void textSetFont(Adafruit_RA8875x::FontType type, Adafruit_RA8875x::FontSet set = Adafruit_RA8875x::ISO8859_1);
+  void textSetUserChar(uint8_t charIdx, uint8_t charData[16]);
+  void textSetUserFont(uint8_t data[][16], uint8_t firstChar = 0, uint8_t lastChar = 255);
+  void setWindow(uint16_t fromX, uint16_t fromY, uint16_t toX, uint16_t toY);
+  void getWindow(uint16_t *fromX, uint16_t *fromY, uint16_t *toX, uint16_t *toY);
+  void pushPixels(uint32_t num, uint16_t p[]);
+  void drawCanvas1(uint16_t x, uint16_t y, uint16_t fg, uint16_t bg, GFXcanvas1 *canvas);
+  
+  
+  
+  
+  ///////////////////////////////////////////////////////////////////
+
+  
   /* Text functions */
   void textMode(void);
   void textSetCursor(uint16_t x, uint16_t y);
@@ -517,5 +555,37 @@ private:
 #define RA8875_SCROLL_LAYER1 0x40 ///< See datasheet
 #define RA8875_SCROLL_LAYER2 0x80 ///< See datasheet
 #define RA8875_SCROLL_BUFFER 0xC0 ///< See datasheet
+
+
+// Enhancements
+#define RA8875_FNCR0		0x21 ///< See datasheet
+#define RA8875_CGSR			0x23 ///< See datasheet
+#define RA8875_MWCR1		0x41 ///< See datasheet
+
+#define RA8875_BECR0		0x50 ///< See datasheet
+#define RA8875_BECR1		0x51 ///< See datasheet
+
+#define RA8875_HSBE0		0x54 ///< See datasheet
+#define RA8875_HSBE1		0x55 ///< See datasheet
+#define RA8875_VSBE0		0x56 ///< See datasheet
+#define RA8875_VSBE1		0x57 ///< See datasheet
+#define RA8875_HDBE0		0x58 ///< See datasheet
+#define RA8875_HDBE1		0x59 ///< See datasheet
+#define RA8875_VDBE0		0x5A ///< See datasheet
+#define RA8875_VDBE1		0x5B ///< See datasheet
+#define RA8875_BEWR0		0x5C ///< See datasheet
+#define RA8875_BEWR1		0x5D ///< See datasheet
+#define RA8875_BEHR0		0x5E ///< See datasheet
+#define RA8875_BEHR1		0x5F ///< See datasheet
+
+#define RA8875_BGCR0		0x60 ///< See datasheet
+#define RA8875_BGCR1		0x61 ///< See datasheet
+#define RA8875_BGCR2		0x62 ///< See datasheet
+#define RA8875_FGCR0		0x63 ///< See datasheet
+#define RA8875_FGCR1		0x64 ///< See datasheet
+#define RA8875_FGCR2		0x65 ///< See datasheet
+#define RA8875_BGTR0		0x67 ///< See datasheet
+#define RA8875_BGTR1		0x68 ///< See datasheet
+#define RA8875_BGTR2		0x69 ///< See datasheet
 
 #endif
