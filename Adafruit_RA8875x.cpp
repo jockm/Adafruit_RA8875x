@@ -122,12 +122,16 @@ boolean Adafruit_RA8875x::begin(enum RA8875sizes s) {
   digitalWrite(_cs, HIGH);
   pinMode(_rst, OUTPUT);
 
-  digitalWrite(_rst, LOW);
-  delay(100);
-  digitalWrite(_rst, HIGH);
-  delay(100);
-
   SPI.begin();
+
+  if(_rst == 0xFF) {
+	  this->softReset();
+  } else {
+	  digitalWrite(_rst, LOW);
+	  delay(100);
+	  digitalWrite(_rst, HIGH);
+	  delay(100);
+  }
 
 #ifdef SPI_HAS_TRANSACTION
 /// @cond DISABLE
@@ -151,7 +155,7 @@ boolean Adafruit_RA8875x::begin(enum RA8875sizes s) {
   uint8_t x = readReg(0);
   //    Serial.print("x = 0x"); Serial.println(x,HEX);
   if (x != 0x75) {
-    Serial.println(x);
+    Serial1.println(x, HEX);
     return false;
   }
 
@@ -159,17 +163,20 @@ boolean Adafruit_RA8875x::begin(enum RA8875sizes s) {
 
 #ifdef SPI_HAS_TRANSACTION
 /// @cond DISABLE
-#if defined(ARDUINO_ARCH_ARC32)
-  /// @endcond
-  spi_speed = 12000000L;
+#	if defined(ARDUINO_ARCH_ARC32)
+/// @endcond
+	  spi_speed = 12000000L;
+#	else
+	  spi_speed = 4000000L;
+#	endif
 #else
-  spi_speed = 4000000L;
+#	ifdef __AVR__
+	  SPI.setClockDivider(SPI_CLOCK_DIV4);
+#	endif
 #endif
-#else
-#ifdef __AVR__
-  SPI.setClockDivider(SPI_CLOCK_DIV4);
-#endif
-#endif
+
+  // Just setting this manually
+  // spi_speed = 12000000L;
 
   return true;
 }
@@ -194,18 +201,17 @@ void Adafruit_RA8875x::softReset(void) {
 */
 /**************************************************************************/
 void Adafruit_RA8875x::PLLinit(void) {
-  if (_size == RA8875_480x80 || _size == RA8875_480x128 ||
-      _size == RA8875_480x272) {
-    writeReg(RA8875_PLLC1, RA8875_PLLC1_PLLDIV1 + 10);
-    delay(1);
-    writeReg(RA8875_PLLC2, RA8875_PLLC2_DIV4);
-    delay(1);
-  } else /* (_size == RA8875_800x480) */ {
-    writeReg(RA8875_PLLC1, RA8875_PLLC1_PLLDIV1 + 11);
-    delay(1);
-    writeReg(RA8875_PLLC2, RA8875_PLLC2_DIV4);
-    delay(1);
-  }
+	if (_size == RA8875_480x80 || _size == RA8875_480x128 || _size == RA8875_480x272) {
+		writeReg(RA8875_PLLC1, RA8875_PLLC1_PLLDIV1 + 10);
+		delay(1);
+		writeReg(RA8875_PLLC2, RA8875_PLLC2_DIV4);
+		delay(1);
+	} else /* (_size == RA8875_800x480) */ {
+		writeReg(RA8875_PLLC1, RA8875_PLLC1_PLLDIV1 + 11);
+		delay(1);
+		writeReg(RA8875_PLLC2, RA8875_PLLC2_DIV4);
+		delay(1);
+	}
 }
 
 /**************************************************************************/
@@ -214,8 +220,9 @@ void Adafruit_RA8875x::PLLinit(void) {
 */
 /**************************************************************************/
 void Adafruit_RA8875x::initialize(void) {
-  PLLinit();
-  writeReg(RA8875_SYSR, RA8875_SYSR_16BPP | RA8875_SYSR_MCU8);
+  // WAS PLLinit();
+  // WAS writeReg(RA8875_SYSR, RA8875_SYSR_16BPP | RA8875_SYSR_MCU8);
+  // WAS writeReg(RA8875_SYSR, 0x0C);
 
   /* Timing values */
   uint8_t pixclk;
@@ -250,7 +257,8 @@ void Adafruit_RA8875x::initialize(void) {
     _voffset = 0;
   } else // (_size == RA8875_800x480)
   {
-    pixclk = RA8875_PCSR_PDATL | RA8875_PCSR_2CLK;
+    // was  pixclk = RA8875_PCSR_PDATL | RA8875_PCSR_2CLK;
+    pixclk = 0x81;
     hsync_nondisp = 26;
     hsync_start = 32;
     hsync_pw = 96;
@@ -264,6 +272,9 @@ void Adafruit_RA8875x::initialize(void) {
   writeReg(RA8875_PCSR, pixclk);
   delay(1);
 
+#if 0
+  // This is adafruit's code
+  
   /* Horizontal settings registers */
   writeReg(RA8875_HDWR, (_width / 8) - 1); // H width: (HDWR + 1) * 8 = 480
   writeReg(RA8875_HNDFTR, RA8875_HNDFTR_DE_HIGH + hsync_finetune);
@@ -283,7 +294,42 @@ void Adafruit_RA8875x::initialize(void) {
   writeReg(RA8875_VSTR1, vsync_start >> 8);
   writeReg(RA8875_VPWR,
            RA8875_VPWR_LOW + vsync_pw - 1); // Vsync pulse width = VPWR + 1
+#else
+if (_rst == 255) {//soft reset
+	writeCommand(RA8875_PWRR);
+	writeData(RA8875_PWRR_SOFTRESET);
+	writeData(RA8875_PWRR_NORMAL);
+	delay(200);
+}
+  
+  // Derived from buydisplay's code
+  const uint8_t initCodes[] = {0x10,0x02,0x81,0x63,0x00,0x03,0x03,0x0B,0xDF,0x01,0x1F,0x00,0x16,0x00,0x01};
+  
+  writeReg(RA8875_PLLC1, initCodes[0]);////PLL Control Register 1
+  delay(1);
+  writeReg(RA8875_PLLC2, initCodes[1]);////PLL Control Register 2
+  delay(1);
+  
+  writeReg(RA8875_PCSR,  initCodes[2]);//Pixel Clock Setting Register
+  delay(1);
+  writeReg(RA8875_SYSR,  0x0C);//we are working ALWAYS at 65K color space!!!!
+  
+  writeReg(RA8875_HDWR,  initCodes[3]);//LCD Horizontal Display Width Register
+  writeReg(RA8875_HNDFTR,initCodes[4]);//Horizontal Non-Display Period Fine Tuning Option Register
+  writeReg(RA8875_HNDR,  initCodes[5]);////LCD Horizontal Non-Display Period Register
+  writeReg(RA8875_HSTR,  initCodes[6]);////HSYNC Start Position Register
+  writeReg(RA8875_HPWR,  initCodes[7]);////HSYNC Pulse Width Register
+  writeReg(RA8875_VDHR0, initCodes[8]);////LCD Vertical Display Height Register0
+  writeReg(RA8875_VDHR1, initCodes[9]);////LCD Vertical Display Height Register1
+  writeReg(RA8875_VNDR0, initCodes[10]);////LCD Vertical Non-Display Period Register 0
+  writeReg(RA8875_VNDR1, initCodes[11]);////LCD Vertical Non-Display Period Register 1
+  writeReg(RA8875_VSTR0, initCodes[12]);////VSYNC Start Position Register 0
+  writeReg(RA8875_VSTR1, initCodes[13]);////VSYNC Start Position Register 1
+  writeReg(RA8875_VPWR,  initCodes[14]);////VSYNC Pulse Width Register
+  
+#endif
 
+  this->displayOn(true);
   /* Set active window X */
   writeReg(RA8875_HSAW0, 0); // horizontal start point
   writeReg(RA8875_HSAW1, 0);
@@ -301,6 +347,7 @@ void Adafruit_RA8875x::initialize(void) {
 
   /* Clear the entire window */
   writeReg(RA8875_MCLR, RA8875_MCLR_START | RA8875_MCLR_FULL);
+  
   delay(500);
 }
 
